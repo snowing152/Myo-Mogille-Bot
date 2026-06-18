@@ -26,6 +26,7 @@ class Session:
     state: SessionState = SessionState.IDLE
     messages: list[str] = field(default_factory=list)
     started_at: float = 0.0
+    prompt_message_id: int | None = None
 
     def add_message(self, text: str) -> None:
         cleaned = text.strip()

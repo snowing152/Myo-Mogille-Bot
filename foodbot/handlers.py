@@ -45,8 +45,9 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     sessions = context.application.bot_data["sessions"]
 
     if is_trigger(message.text, config.trigger_phrases):
-        sessions.start(chat_id)
-        await message.reply_text(START_PROMPT, reply_markup=FIND_BUTTON)
+        session = sessions.start(chat_id)
+        sent = await message.reply_text(START_PROMPT, reply_markup=FIND_BUTTON)
+        session.prompt_message_id = sent.message_id
         return
 
     session = sessions.get_active(chat_id)
@@ -56,26 +57,42 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def on_eat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
-    context.application.bot_data["sessions"].start(chat_id)
-    await context.bot.send_message(chat_id=chat_id, text=START_PROMPT, reply_markup=FIND_BUTTON)
+    session = context.application.bot_data["sessions"].start(chat_id)
+    sent = await context.bot.send_message(chat_id=chat_id, text=START_PROMPT, reply_markup=FIND_BUTTON)
+    session.prompt_message_id = sent.message_id
 
 
 async def on_go(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.callback_query is not None:
-        await update.callback_query.answer()
     chat_id = update.effective_chat.id
     sessions = context.application.bot_data["sessions"]
     session = sessions.get_active(chat_id)
 
     if session is None:
+        if update.callback_query is not None:
+            await update.callback_query.answer(NO_SESSION, show_alert=True)
         await context.bot.send_message(chat_id=chat_id, text=NO_SESSION)
         return
     if not session.messages:
+        if update.callback_query is not None:
+            await update.callback_query.answer(NO_MESSAGES, show_alert=True)
         await context.bot.send_message(chat_id=chat_id, text=NO_MESSAGES)
         return
 
+    if update.callback_query is not None:
+        await update.callback_query.answer()
+
     messages = list(session.messages)
+    prompt_message_id = session.prompt_message_id
     sessions.end(chat_id)
+
+    if prompt_message_id is not None:
+        try:
+            await context.bot.edit_message_reply_markup(
+                chat_id=chat_id, message_id=prompt_message_id, reply_markup=None
+            )
+        except Exception:
+            pass
+
     await context.bot.send_message(chat_id=chat_id, text=SEARCHING)
     try:
         reply = await pipeline.run(messages, _build_deps(context))

@@ -68,6 +68,16 @@ async def test_on_go_without_session():
     upd, _ = _update(1, callback=True)
     await handlers.on_go(upd, ctx)
     assert any("Сессия" in (t or "") for t in _sent_texts(ctx))
+    upd.callback_query.answer.assert_awaited_once_with(handlers.NO_SESSION, show_alert=True)
+
+
+async def test_on_go_without_messages_alerts():
+    ctx = _context()
+    ctx.application.bot_data["sessions"].start(1)
+    upd, _ = _update(1, callback=True)
+    await handlers.on_go(upd, ctx)
+    assert any("Пока никто" in (t or "") for t in _sent_texts(ctx))
+    upd.callback_query.answer.assert_awaited_once_with(handlers.NO_MESSAGES, show_alert=True)
 
 
 async def test_on_go_runs_pipeline(monkeypatch):
@@ -85,3 +95,23 @@ async def test_on_go_runs_pipeline(monkeypatch):
 
     assert store.get_active(1) is None  # session ended
     assert any("РЕЗУЛЬТАТ" in (t or "") for t in _sent_texts(ctx))
+
+
+async def test_on_go_clears_stale_prompt_keyboard(monkeypatch):
+    ctx = _context()
+    ctx.bot.edit_message_reply_markup = AsyncMock()
+    store = ctx.application.bot_data["sessions"]
+    session = store.start(1)
+    session.prompt_message_id = 42
+    session.add_message("хочу соджу")
+
+    async def fake_run(messages, deps):
+        return "РЕЗУЛЬТАТ"
+
+    monkeypatch.setattr(pipeline, "run", fake_run)
+    upd, _ = _update(1, callback=True)
+    await handlers.on_go(upd, ctx)
+
+    ctx.bot.edit_message_reply_markup.assert_awaited_once_with(
+        chat_id=1, message_id=42, reply_markup=None
+    )

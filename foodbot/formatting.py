@@ -17,10 +17,13 @@ def build_message(area_label: str, places: list[Place], picks: list[Pick]) -> st
     for number, pick in enumerate(picks, start=1):
         place = places[pick.index]
         reason = pick.reason_ru or place.category
-        distance = f"{place.distance_m} м" if place.distance_m else ""
-        head = f"{number}. {place.name} ({place.category})"
-        if distance:
-            head += f" — {distance}"
-        blocks.append(f"{head}\n{reason}\n{place.url}")
+        head = f"{number}. {place.name}"
+        if place.category:
+            head += f" ({place.category})"
+        block = head
+        if reason:
+            block += f"\n{reason}"
+        block += f"\n{place.url}"
+        blocks.append(block)
 
     return header + "\n\n" + "\n\n".join(blocks)
