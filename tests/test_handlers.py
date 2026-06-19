@@ -115,3 +115,23 @@ async def test_on_go_clears_stale_prompt_keyboard(monkeypatch):
     ctx.bot.edit_message_reply_markup.assert_awaited_once_with(
         chat_id=1, message_id=42, reply_markup=None
     )
+
+
+async def test_on_go_sends_result_with_html_parse_mode(monkeypatch):
+    from telegram.constants import ParseMode
+
+    ctx = _context()
+    store = ctx.application.bot_data["sessions"]
+    store.start(1)
+    store.get_active(1).add_message("хочу соджу")
+
+    async def fake_run(messages, deps):
+        return "РЕЗУЛЬТАТ"
+
+    monkeypatch.setattr(pipeline, "run", fake_run)
+    upd, _ = _update(1, callback=True)
+    await handlers.on_go(upd, ctx)
+
+    final_call = ctx.bot.send_message.await_args_list[-1]
+    assert final_call.kwargs.get("text") == "РЕЗУЛЬТАТ"
+    assert final_call.kwargs.get("parse_mode") == ParseMode.HTML

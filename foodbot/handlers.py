@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from foodbot import pipeline
@@ -99,4 +100,4 @@ async def on_go(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception:
         logger.exception("pipeline failed")
         reply = ERROR
-    await context.bot.send_message(chat_id=chat_id, text=reply)
+    await context.bot.send_message(chat_id=chat_id, text=reply, parse_mode=ParseMode.HTML)
