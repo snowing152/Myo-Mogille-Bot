@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from telegram import Update
@@ -43,6 +44,8 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     app = build_application()
     logging.getLogger(__name__).info("Bot starting (long polling)…")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
