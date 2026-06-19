@@ -1,16 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from urllib.parse import quote
 
 import httpx
 
 KAKAO_KEYWORD_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
-
-
-def naver_search_url(name: str) -> str:
-    """Best-effort Naver Map search-by-name link (no API, no guaranteed exact match)."""
-    return f"https://map.naver.com/p/search/{quote(name)}"
 
 
 @dataclass(frozen=True)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import html
 
-from foodbot.places import Place, naver_search_url
+from foodbot.places import Place
 from foodbot.llm import Pick
 
 
@@ -29,8 +29,6 @@ def build_message(area_label: str, places: list[Place], picks: list[Pick]) -> st
             block += f"\n{html.escape(reason)}"
         if place.url:
             block += f'\n🟡 Kakao: <a href="{html.escape(place.url)}">тык сюда</a>'
-        naver_url = naver_search_url(place.name)
-        block += f'\n🟢 Naver: <a href="{html.escape(naver_url)}">тык сюда</a>'
         blocks.append(block)
 
     return header + "\n\n" + "\n\n".join(blocks)

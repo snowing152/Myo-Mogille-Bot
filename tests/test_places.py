@@ -65,18 +65,3 @@ async def test_kakao_search_builds_request():
     assert "query=" in captured["url"]
     assert "radius=1500" in captured["url"]
     assert captured["auth"] == "KakaoAK MYKEY"
-
-
-def test_naver_search_url_encodes_ascii_name():
-    from foodbot.places import naver_search_url
-
-    assert naver_search_url("Cafe Mama") == "https://map.naver.com/p/search/Cafe%20Mama"
-
-
-def test_naver_search_url_encodes_korean_name():
-    from urllib.parse import quote
-
-    from foodbot.places import naver_search_url
-
-    name = "이자카야 하나"
-    assert naver_search_url(name) == f"https://map.naver.com/p/search/{quote(name)}"
