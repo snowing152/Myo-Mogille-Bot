@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/test_places.py -q)",
+      "Skill(code-review)",
+      "Skill(code-review:*)"
+    ]
+  }
+}
