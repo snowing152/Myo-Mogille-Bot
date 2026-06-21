@@ -15,6 +15,7 @@ queries are converted to Korean terms before calling Kakao Places.
 
 - Starts a per-chat collection session from `/eat` or configured trigger phrases.
 - Collects free-text cravings from group members during the active session.
+- Notifies the group once if the session input limit has been reached.
 - Lets anyone finish the session with `/go` or the inline find-places button.
 - Rejects stale inline buttons from older session prompts.
 - Uses Gemini to extract cravings, Korean search queries, and an optional area.

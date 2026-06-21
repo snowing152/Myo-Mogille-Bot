@@ -14,11 +14,11 @@ BASE_ENV = {
 }
 
 
-def _context():
+def _context(sessions=None):
     ctx = MagicMock()
     ctx.application.bot_data = {
         "config": load_config(dict(BASE_ENV)),
-        "sessions": SessionStore(timeout_min=20),
+        "sessions": sessions or SessionStore(timeout_min=20),
         "llm": object(),
         "kakao": object(),
         "default_point": object(),
@@ -61,6 +61,23 @@ async def test_on_text_collects_messages():
     upd, _ = _update(1, "хочу соджу")
     await handlers.on_text(upd, ctx)
     session = ctx.application.bot_data["sessions"].get_active(1)
+    assert session.messages == ["хочу соджу"]
+
+
+async def test_on_text_notifies_once_when_session_limit_reached():
+    sessions = SessionStore(timeout_min=20, max_messages=1)
+    ctx = _context(sessions=sessions)
+    session = sessions.start(1)
+    session.add_message("хочу соджу")
+
+    first_upd, first_msg = _update(1, "и мясо")
+    await handlers.on_text(first_upd, ctx)
+
+    second_upd, second_msg = _update(1, "и пиво")
+    await handlers.on_text(second_upd, ctx)
+
+    first_msg.reply_text.assert_awaited_once_with(handlers.SESSION_LIMIT_REACHED)
+    second_msg.reply_text.assert_not_awaited()
     assert session.messages == ["хочу соджу"]
 
 

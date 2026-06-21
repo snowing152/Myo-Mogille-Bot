@@ -15,6 +15,10 @@ If Kakao or Gemini is temporarily unavailable, the bot falls back where it can. 
 restaurant search itself is unavailable, it returns a temporary error instead of
 claiming that nothing was found nearby.
 
+Long sessions are bounded by message count and total text length. When the limit is
+reached, the bot tells the group to run the search instead of silently collecting
+more text.
+
 ## Setup
 
 ### 1. Telegram bot

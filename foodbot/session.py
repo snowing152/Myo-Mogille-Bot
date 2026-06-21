@@ -29,6 +29,7 @@ class Session:
     prompt_message_id: int | None = None
     max_messages: int = 50
     max_chars: int = 4000
+    limit_notice_sent: bool = False
 
     def add_message(self, text: str) -> bool:
         cleaned = text.strip()

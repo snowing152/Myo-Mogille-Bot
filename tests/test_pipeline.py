@@ -90,6 +90,15 @@ async def test_pipeline_partial_search_failure_uses_successful_results():
     assert "мясо" in msg
 
 
+async def test_pipeline_partial_search_failure_without_results_returns_provider_error():
+    llm = FakeLLM(
+        extract=CravingResult(["soju", "meat"], ["소주", "삼겹살"], None, False),
+    )
+    kakao = FakeKakao({"소주": []}, fail_queries={"삼겹살"})
+    msg = await pipeline.run(["соджу и мясо"], _deps(llm, kakao))
+    assert "временно не могу проверить места" in msg
+
+
 async def test_pipeline_extract_failure_uses_dictionary():
     llm = FakeLLM(fail_extract=True, picks=[Pick(0, "")])
     kakao = FakeKakao({"소주": [P1]})  # dictionary maps соджу -> 소주

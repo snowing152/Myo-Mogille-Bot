@@ -21,6 +21,10 @@ FIND_BUTTON = InlineKeyboardMarkup(
 )
 NO_SESSION = "Сессия истекла или не начата. Напишите «куда пойдём кушать?» заново."
 NO_MESSAGES = "Пока никто не написал пожеланий 🤔 Напишите, что хотите, потом жмите кнопку."
+SESSION_LIMIT_REACHED = (
+    "Я уже собрал достаточно пожеланий для этой сессии. "
+    "Нажмите «Найти места» или отправьте /go."
+)
 STALE_BUTTON = "Это старая кнопка. Нажмите кнопку из текущей сессии или отправьте /go."
 SEARCHING = "Секунду, ищу подходящие места… 🔎"
 ERROR = "Упс, что-то пошло не так. Попробуйте ещё раз чуть позже."
@@ -54,7 +58,10 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     session = sessions.get_active(chat_id)
     if session is not None:
-        session.add_message(message.text)
+        if message.text.strip() and not session.add_message(message.text):
+            if not session.limit_notice_sent:
+                session.limit_notice_sent = True
+                await message.reply_text(SESSION_LIMIT_REACHED)
 
 
 async def on_eat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

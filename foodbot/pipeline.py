@@ -32,20 +32,13 @@ class PipelineDeps:
 @dataclass
 class SearchBatch:
     places: list
-    attempted: int
     failures: int
-
-    @property
-    def successes(self) -> int:
-        return self.attempted - self.failures
 
 
 async def _search_all(kakao: Any, queries: list[str], point: GeoPoint, radius_m: int) -> SearchBatch:
     groups: list[list] = []
-    attempted = 0
     failures = 0
     for query in queries:
-        attempted += 1
         try:
             groups.append(await kakao.search(query, point.lat, point.lng, radius_m))
         except Exception as exc:
@@ -59,7 +52,7 @@ async def _search_all(kakao: Any, queries: list[str], point: GeoPoint, radius_m:
                 exc.__class__.__name__,
             )
             continue
-    return SearchBatch(places=merge_places(groups), attempted=attempted, failures=failures)
+    return SearchBatch(places=merge_places(groups), failures=failures)
 
 
 async def run(messages: list[str], deps: PipelineDeps) -> str:
@@ -88,13 +81,13 @@ async def run(messages: list[str], deps: PipelineDeps) -> str:
     # 3. Search (widen radius once if nothing nearby).
     first_search = await _search_all(deps.kakao, queries, point, deps.radius_m)
     results = first_search.places
-    successful_searches = first_search.successes
+    search_failures = first_search.failures
     if not results:
         second_search = await _search_all(deps.kakao, queries, point, deps.radius_m * 2)
         results = second_search.places
-        successful_searches += second_search.successes
+        search_failures += second_search.failures
     if not results:
-        if successful_searches == 0:
+        if search_failures:
             return SEARCH_ERROR
         return NOT_FOUND
 
