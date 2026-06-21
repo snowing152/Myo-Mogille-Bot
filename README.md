@@ -1,72 +1,221 @@
-# куда пойдём 🍽 — Telegram food-decider bot
+# Myo Mogille Bot
 
-A Telegram group-chat bot. When someone asks **«куда пойдём кушать?»**, it collects
-everyone's cravings, then suggests ~3 nearby Korean restaurants with KakaoMap links.
+> Telegram food-decider bot for Russian-speaking groups in Korea.
 
-## How it works
-1. Someone sends a trigger phrase (e.g. «куда пойдём кушать?») or `/eat`.
+![Myo Mogille Bot preview](<assets/Gemini_Generated_Image_wlzahiwlzahiwlza(1).png>)
+
+Myo Mogille Bot helps a Telegram group answer the practical question: **"куда
+пойдём кушать?"** It collects everyone’s cravings, translates food intent into
+Korean search terms, searches nearby restaurants through Kakao Places, and replies
+with a short list of recommendations and KakaoMap links.
+
+The bot runs locally with Telegram long polling. It is online only while
+`python bot.py` is running.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Installation](#installation)
+- [Environment Variables](#environment-variables)
+- [Running the Project](#running-the-project)
+- [Available Scripts](#available-scripts)
+- [Screenshots or Preview](#screenshots-or-preview)
+- [Roadmap / Future Improvements](#roadmap--future-improvements)
+- [License](#license)
+
+## Overview
+
+Typical flow:
+
+1. Someone sends a trigger phrase such as **"куда пойдём кушать?"** or runs
+   `/eat`.
 2. The bot opens a collection session and shows a **🍽 Найти места** button.
-3. Everyone types what they want (соджу, кимчи, мясо…). Optionally name a district
-   (e.g. «в Хондэ»).
-4. Anyone taps the button (or sends `/go`).
-5. The bot replies with matched places — name, type, distance, and a KakaoMap link.
+3. Group members type cravings such as `соджу`, `кимчи`, `мясо`, or mention a
+   district such as `в Хондэ`.
+4. Anyone taps the button or sends `/go`.
+5. The bot replies with matched places, short reasons, and KakaoMap links.
 
-If Kakao or Gemini is temporarily unavailable, the bot falls back where it can. If
-restaurant search itself is unavailable, it returns a temporary error instead of
-claiming that nothing was found nearby.
+If Gemini is unavailable, the bot falls back to a small Russian-to-Korean craving
+dictionary. If Kakao search itself is unavailable, the bot returns a temporary
+error instead of incorrectly saying that nothing was found.
 
-Long sessions are bounded by message count and total text length. When the limit is
-reached, the bot tells the group to run the search instead of silently collecting
-more text.
+## Features
 
-## Setup
+- Telegram group-chat workflow with `/eat`, `/go`, trigger phrases, and an inline
+  find button.
+- In-memory per-chat collection sessions with timeout and input limits.
+- Russian-language craving extraction with Gemini.
+- Korean search query generation for Kakao Places.
+- Optional area detection and geocoding through Kakao keyword search.
+- Restaurant deduplication, distance sorting, and LLM-assisted ranking.
+- Fallback behavior for LLM extraction/ranking failures.
+- Temporary provider-error handling for failed Kakao searches.
+- Telegram HTML output with escaped dynamic text.
+- Stale inline-button protection so old prompts cannot submit a newer session.
+- Test coverage for config, handlers, sessions, pipeline fallbacks, parsing, and
+  formatting.
 
-### 1. Telegram bot
-- You already have a token from [@BotFather](https://t.me/BotFather).
-- **Disable privacy mode** so the bot can read group messages:
-  BotFather → `/setprivacy` → select your bot → **Disable**.
-  (Without this the bot only sees commands, not cravings.)
-- Add the bot to your group.
+## Tech Stack
 
-### 2. API keys (both free)
-- **Kakao REST key:** https://developers.kakao.com → create an app → REST API key.
-- **Gemini key:** https://aistudio.google.com/apikey
+| Area | Technology |
+|---|---|
+| Language | Python 3 |
+| Telegram bot framework | `python-telegram-bot` |
+| LLM provider | Gemini via `google-genai` |
+| Places provider | Kakao Local API via `httpx` |
+| Environment loading | `python-dotenv` |
+| Testing | `pytest`, `pytest-asyncio` |
+| Build system | TODO |
+| Lint / format tooling | TODO |
 
-### 3. Configure
-```powershell
-copy .env.example .env
+There is no `package.json` in this repository.
+
+## Project Structure
+
+```text
+.
+├── bot.py                  # Telegram app wiring and long-polling entrypoint
+├── foodbot/
+│   ├── config.py           # Environment parsing and validation
+│   ├── dictionary.py       # Russian-to-Korean fallback craving dictionary
+│   ├── formatting.py       # Telegram HTML response formatting
+│   ├── geo.py              # Area geocoding helper
+│   ├── handlers.py         # Telegram command, text, and callback handlers
+│   ├── llm.py              # Gemini wrapper and JSON parsers
+│   ├── pipeline.py         # Craving extraction, search, ranking, formatting flow
+│   ├── places.py           # Kakao client and Place model
+│   └── session.py          # In-memory session store
+├── tests/                  # Pytest test suite
+├── assets/                 # Project image assets
+├── .env.example            # Environment template
+├── requirements.txt        # Runtime dependencies
+├── requirements-dev.txt    # Test/development dependencies
+├── pytest.ini              # Pytest configuration
+├── PROJECT_OVERVIEW.md     # Architecture notes
+└── AGENTS.md               # Instructions for future coding agents
 ```
-Fill in `TELEGRAM_BOT_TOKEN`, `GEMINI_API_KEY`, `KAKAO_REST_API_KEY`, and
-`DEFAULT_LAT` / `DEFAULT_LNG` / `DEFAULT_AREA_NAME` (your usual area; the example
-values point at Hongdae, Seoul).
 
-### 4. Install & run
+## Installation
+
+### 1. Create a Telegram bot
+
+1. Create a bot with [@BotFather](https://t.me/BotFather).
+2. Disable privacy mode so the bot can read group messages:
+   `BotFather` → `/setprivacy` → select your bot → **Disable**.
+3. Add the bot to your Telegram group.
+
+Without disabling privacy mode, the bot sees commands but not normal group
+messages, so it cannot collect cravings.
+
+### 2. Get API keys
+
+- **Kakao REST API key:** create an app at <https://developers.kakao.com>.
+- **Gemini API key:** create a key at <https://aistudio.google.com/apikey>.
+
+### 3. Create a virtual environment
+
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python bot.py
 ```
-The bot runs on your PC via long-polling — it's online while this process runs.
 
-## Development
+### 4. Install dependencies
+
+Runtime only:
+
+```powershell
+pip install -r requirements.txt
+```
+
+Development and tests:
+
 ```powershell
 pip install -r requirements-dev.txt
-python -m pytest -v
 ```
 
-## Configuration reference
-| Variable | Meaning | Default |
-|---|---|---|
-| `TELEGRAM_BOT_TOKEN` | BotFather token | required |
-| `GEMINI_API_KEY` | Google AI Studio key | required |
-| `KAKAO_REST_API_KEY` | Kakao Developers REST key | required |
-| `DEFAULT_LAT` / `DEFAULT_LNG` | Default search center | required |
-| `DEFAULT_AREA_NAME` | Label for the default area | required |
-| `SEARCH_RADIUS_M` | Search radius (meters) | 1500 |
-| `RESULTS_COUNT` | Places returned | 3 |
-| `SESSION_TIMEOUT_MIN` | Collection window | 20 |
-| `LLM_MODEL` | Gemini model id | gemini-2.5-flash |
-| `TRIGGER_PHRASES` | Comma-separated override | built-in list |
-| `MAX_SESSION_MESSAGES` | Max collected messages per session | 50 |
-| `MAX_SESSION_CHARS` | Max collected text characters per session | 4000 |
+`requirements-dev.txt` includes `requirements.txt`.
+
+## Environment Variables
+
+Create your local `.env` file from the example:
+
+```powershell
+copy .env.example .env
+```
+
+Fill in the required values:
+
+| Variable | Required | Default | Description |
+|---|---:|---|---|
+| `TELEGRAM_BOT_TOKEN` | Yes | - | Telegram token from BotFather. |
+| `GEMINI_API_KEY` | Yes | - | Google AI Studio / Gemini API key. |
+| `KAKAO_REST_API_KEY` | Yes | - | Kakao Developers REST API key. |
+| `DEFAULT_LAT` | Yes | - | Default search-center latitude. |
+| `DEFAULT_LNG` | Yes | - | Default search-center longitude. |
+| `DEFAULT_AREA_NAME` | Yes | - | Label shown for the default area. |
+| `SEARCH_RADIUS_M` | No | `1500` | Search radius in meters. |
+| `RESULTS_COUNT` | No | `3` | Number of places to return. |
+| `SESSION_TIMEOUT_MIN` | No | `20` | Collection session timeout. |
+| `LLM_MODEL` | No | `gemini-2.5-flash` | Gemini model id. |
+| `TRIGGER_PHRASES` | No | built-in list | Comma-separated trigger override. |
+| `MAX_SESSION_MESSAGES` | No | `50` | Max collected messages per session. |
+| `MAX_SESSION_CHARS` | No | `4000` | Max collected text characters per session. |
+
+The example default coordinates point at Hongdae, Seoul.
+
+Do not commit `.env`. It is intentionally ignored.
+
+## Running the Project
+
+Start the bot:
+
+```powershell
+python bot.py
+```
+
+The app uses long polling. Keep the process running while you want the bot online.
+
+## Available Scripts
+
+This repository does not define package-manager scripts. Use the direct commands
+below.
+
+| Task | Command |
+|---|---|
+| Install runtime dependencies | `pip install -r requirements.txt` |
+| Install dev/test dependencies | `pip install -r requirements-dev.txt` |
+| Run the bot | `python bot.py` |
+| Run tests | `python -m pytest -v` |
+| Build | TODO |
+| Lint | TODO |
+| Format | TODO |
+
+If using the local virtual environment directly:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -v
+```
+
+## Screenshots or Preview
+
+Project preview image:
+
+![Myo Mogille Bot preview](<assets/Gemini_Generated_Image_wlzahiwlzahiwlza(1).png>)
+
+Runtime Telegram screenshots are TODO.
+
+## Roadmap / Future Improvements
+
+- Persist sessions outside process memory if the bot needs reliable restarts.
+- Add deployment instructions for a VPS, container, or process manager.
+- Add structured logging around provider calls and user-facing failures.
+- Expand the fallback craving dictionary.
+- Add screenshots of the Telegram group flow.
+- Add linting/formatting tooling if the project grows.
+
+## License
+
+TODO: No license file is currently included in this repository.
