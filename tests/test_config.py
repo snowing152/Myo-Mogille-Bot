@@ -30,11 +30,17 @@ def test_load_config_overrides():
         BASE_ENV,
         SEARCH_RADIUS_M="800",
         RESULTS_COUNT="5",
+        SESSION_TIMEOUT_MIN="10",
+        MAX_SESSION_MESSAGES="25",
+        MAX_SESSION_CHARS="2000",
         TRIGGER_PHRASES="есть хочу, перекусим",
     )
     cfg = load_config(env)
     assert cfg.search_radius_m == 800
     assert cfg.results_count == 5
+    assert cfg.session_timeout_min == 10
+    assert cfg.max_session_messages == 25
+    assert cfg.max_session_chars == 2000
     assert cfg.trigger_phrases == ("есть хочу", "перекусим")
 
 
@@ -42,4 +48,26 @@ def test_load_config_missing_required():
     env = dict(BASE_ENV)
     del env["TELEGRAM_BOT_TOKEN"]
     with pytest.raises(ConfigError):
+        load_config(env)
+
+
+def test_load_config_bad_float_raises_config_error():
+    env = dict(BASE_ENV, DEFAULT_LAT="north")
+    with pytest.raises(ConfigError, match="DEFAULT_LAT"):
+        load_config(env)
+
+
+def test_load_config_bad_int_raises_config_error():
+    env = dict(BASE_ENV, RESULTS_COUNT="many")
+    with pytest.raises(ConfigError, match="RESULTS_COUNT"):
+        load_config(env)
+
+
+def test_load_config_rejects_out_of_range_values():
+    env = dict(BASE_ENV, SEARCH_RADIUS_M="0")
+    with pytest.raises(ConfigError, match="SEARCH_RADIUS_M"):
+        load_config(env)
+
+    env = dict(BASE_ENV, DEFAULT_LNG="181")
+    with pytest.raises(ConfigError, match="DEFAULT_LNG"):
         load_config(env)

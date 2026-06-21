@@ -21,6 +21,7 @@ FIND_BUTTON = InlineKeyboardMarkup(
 )
 NO_SESSION = "Сессия истекла или не начата. Напишите «куда пойдём кушать?» заново."
 NO_MESSAGES = "Пока никто не написал пожеланий 🤔 Напишите, что хотите, потом жмите кнопку."
+STALE_BUTTON = "Это старая кнопка. Нажмите кнопку из текущей сессии или отправьте /go."
 SEARCHING = "Секунду, ищу подходящие места… 🔎"
 ERROR = "Упс, что-то пошло не так. Попробуйте ещё раз чуть позже."
 
@@ -80,6 +81,13 @@ async def on_go(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     if update.callback_query is not None:
+        callback_message_id = getattr(update.callback_query.message, "message_id", None)
+        if (
+            session.prompt_message_id is not None
+            and callback_message_id != session.prompt_message_id
+        ):
+            await update.callback_query.answer(STALE_BUTTON, show_alert=True)
+            return
         await update.callback_query.answer()
 
     messages = list(session.messages)

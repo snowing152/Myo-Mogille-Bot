@@ -8,11 +8,14 @@ P1 = Place("1", "이자카야", "술집", "addr", 37.5, 127.0, 250, "http://m/1"
 
 
 class FakeKakao:
-    def __init__(self, by_query, coords=None):
+    def __init__(self, by_query, coords=None, fail_queries=None):
         self.by_query = by_query
         self._coords = coords
+        self.fail_queries = set(fail_queries or ())
 
     async def search(self, query, lat, lng, radius_m, size=15):
+        if query in self.fail_queries:
+            raise RuntimeError("kakao down")
         return list(self.by_query.get(query, []))
 
     async def geocode(self, query):
@@ -68,6 +71,23 @@ async def test_pipeline_no_results():
     llm = FakeLLM(extract=CravingResult(["soju"], ["소주"], None, False))
     msg = await pipeline.run(["соджу"], _deps(llm, FakeKakao({})))
     assert "Ничего не нашёл" in msg
+
+
+async def test_pipeline_all_searches_fail_returns_provider_error():
+    llm = FakeLLM(extract=CravingResult(["soju"], ["소주"], None, False))
+    msg = await pipeline.run(["соджу"], _deps(llm, FakeKakao({}, fail_queries={"소주"})))
+    assert "временно не могу проверить места" in msg
+
+
+async def test_pipeline_partial_search_failure_uses_successful_results():
+    llm = FakeLLM(
+        extract=CravingResult(["soju", "meat"], ["소주", "삼겹살"], None, False),
+        picks=[Pick(0, "мясо")],
+    )
+    kakao = FakeKakao({"삼겹살": [P1]}, fail_queries={"소주"})
+    msg = await pipeline.run(["соджу и мясо"], _deps(llm, kakao))
+    assert "이자카야" in msg
+    assert "мясо" in msg
 
 
 async def test_pipeline_extract_failure_uses_dictionary():

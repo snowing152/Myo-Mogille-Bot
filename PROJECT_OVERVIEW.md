@@ -1,4 +1,4 @@
-# Project Overview
+# Project Overview Myo Mogille Bot
 
 ## Purpose
 
@@ -16,10 +16,12 @@ queries are converted to Korean terms before calling Kakao Places.
 - Starts a per-chat collection session from `/eat` or configured trigger phrases.
 - Collects free-text cravings from group members during the active session.
 - Lets anyone finish the session with `/go` or the inline find-places button.
+- Rejects stale inline buttons from older session prompts.
 - Uses Gemini to extract cravings, Korean search queries, and an optional area.
 - Uses Kakao local keyword search to find restaurants near the default or resolved
   area.
 - Uses Gemini to rank results, with nearest-first fallback if ranking fails.
+- Distinguishes provider outages from genuine empty search results.
 - Sends Telegram HTML output with escaped dynamic text and KakaoMap links.
 
 ## Architecture
@@ -31,9 +33,11 @@ Entry point:
 
 Core package:
 
-- `foodbot.config` loads environment-based configuration and default trigger phrases.
+- `foodbot.config` loads and validates environment-based configuration and default
+  trigger phrases.
 - `foodbot.handlers` contains Telegram command, callback, and text handlers.
-- `foodbot.session` stores in-memory per-chat sessions with lazy timeout expiry.
+- `foodbot.session` stores bounded in-memory per-chat sessions with lazy timeout
+  expiry.
 - `foodbot.pipeline` orchestrates extraction, area resolution, place search, ranking,
   and message formatting.
 - `foodbot.llm` wraps Gemini calls and parses strict JSON responses.
@@ -76,6 +80,8 @@ Optional environment variables:
 - `SESSION_TIMEOUT_MIN`, default `20`
 - `LLM_MODEL`, default `gemini-2.5-flash`
 - `TRIGGER_PHRASES`, comma-separated override for the built-in Russian triggers
+- `MAX_SESSION_MESSAGES`, default `50`
+- `MAX_SESSION_CHARS`, default `4000`
 
 Configuration is loaded from `.env` plus process environment through
 `python-dotenv`.
@@ -120,6 +126,8 @@ python -m pytest -v
   database.
 - Kakao and Gemini errors are handled with graceful fallback where possible, but API
   credentials and network access are still required for full functionality.
+- Sessions are bounded by message count and total character count to control prompt
+  size and cost.
 
 ## Development Notes
 

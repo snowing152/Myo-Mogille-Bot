@@ -23,11 +23,51 @@ def test_parse_extract_code_fenced():
     assert result.area is None
 
 
+def test_parse_extract_rejects_string_search_queries():
+    raw = '{"cravings":["soju"],"search_queries":"소주","area":null,"no_preference":false}'
+    try:
+        parse_extract(raw)
+    except ValueError as exc:
+        assert "search_queries" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_parse_extract_rejects_non_object_json():
+    try:
+        parse_extract('[]')
+    except ValueError as exc:
+        assert "object" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_parse_extract_filters_blank_strings_and_strips_area():
+    raw = '{"cravings":[" soju ",""],"search_queries":[" 소주 ",""],"area":" 홍대 ","no_preference":false}'
+    result = parse_extract(raw)
+    assert result.cravings == ["soju"]
+    assert result.search_queries == ["소주"]
+    assert result.area == "홍대"
+
+
 def test_parse_ranking_filters_bad_index():
     raw = '{"picks":[{"index":0,"reason_ru":"ок"},{"index":9,"reason_ru":"нет"}]}'
     picks = parse_ranking(raw, max_index=1)
     assert len(picks) == 1
     assert picks[0] == Pick(0, "ок")
+
+
+def test_parse_ranking_deduplicates_and_limits():
+    raw = (
+        '{"picks":['
+        '{"index":0,"reason_ru":"a"},'
+        '{"index":0,"reason_ru":"dup"},'
+        '{"index":1,"reason_ru":"b"},'
+        '{"index":2,"reason_ru":"c"}'
+        ']}'
+    )
+    picks = parse_ranking(raw, max_index=2, limit=2)
+    assert picks == [Pick(0, "a"), Pick(1, "b")]
 
 
 class StubLLM(GeminiLLM):

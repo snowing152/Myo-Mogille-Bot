@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Any
 
 from foodbot import dictionary
@@ -14,6 +15,9 @@ NUDGE = (
     "(например: соджу, кимчи, мясо), потом жмите кнопку."
 )
 NOT_FOUND = "Ничего не нашёл рядом 😕 Попробуйте другой район или другие пожелания."
+SEARCH_ERROR = "Сейчас временно не могу проверить места 😕 Попробуйте ещё раз чуть позже."
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -25,14 +29,37 @@ class PipelineDeps:
     results_count: int
 
 
-async def _search_all(kakao: Any, queries: list[str], point: GeoPoint, radius_m: int) -> list:
+@dataclass
+class SearchBatch:
+    places: list
+    attempted: int
+    failures: int
+
+    @property
+    def successes(self) -> int:
+        return self.attempted - self.failures
+
+
+async def _search_all(kakao: Any, queries: list[str], point: GeoPoint, radius_m: int) -> SearchBatch:
     groups: list[list] = []
+    attempted = 0
+    failures = 0
     for query in queries:
+        attempted += 1
         try:
             groups.append(await kakao.search(query, point.lat, point.lng, radius_m))
-        except Exception:
+        except Exception as exc:
+            failures += 1
+            logger.warning(
+                "Kakao search failed for query=%r lat=%s lng=%s radius_m=%s: %s",
+                query,
+                point.lat,
+                point.lng,
+                radius_m,
+                exc.__class__.__name__,
+            )
             continue
-    return merge_places(groups)
+    return SearchBatch(places=merge_places(groups), attempted=attempted, failures=failures)
 
 
 async def run(messages: list[str], deps: PipelineDeps) -> str:
@@ -59,10 +86,16 @@ async def run(messages: list[str], deps: PipelineDeps) -> str:
             point = deps.default_point
 
     # 3. Search (widen radius once if nothing nearby).
-    results = await _search_all(deps.kakao, queries, point, deps.radius_m)
+    first_search = await _search_all(deps.kakao, queries, point, deps.radius_m)
+    results = first_search.places
+    successful_searches = first_search.successes
     if not results:
-        results = await _search_all(deps.kakao, queries, point, deps.radius_m * 2)
+        second_search = await _search_all(deps.kakao, queries, point, deps.radius_m * 2)
+        results = second_search.places
+        successful_searches += second_search.successes
     if not results:
+        if successful_searches == 0:
+            return SEARCH_ERROR
         return NOT_FOUND
 
     # 4. Rank (LLM), with nearest-first fallback if the LLM is down.

@@ -43,3 +43,23 @@ def test_session_expiry():
     store.start(1)
     clock["t"] = 21 * 60  # 21 minutes later
     assert store.get_active(1) is None
+
+
+def test_session_message_count_limit():
+    store = SessionStore(timeout_min=20, max_messages=2)
+    session = store.start(1)
+
+    assert session.add_message("one") is True
+    assert session.add_message("two") is True
+    assert session.add_message("three") is False
+    assert session.messages == ["one", "two"]
+
+
+def test_session_character_limit():
+    store = SessionStore(timeout_min=20, max_chars=7)
+    session = store.start(1)
+
+    assert session.add_message("one") is True
+    assert session.add_message("two") is True
+    assert session.add_message("three") is False
+    assert session.messages == ["one", "two"]

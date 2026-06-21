@@ -11,6 +11,10 @@ everyone's cravings, then suggests ~3 nearby Korean restaurants with KakaoMap li
 4. Anyone taps the button (or sends `/go`).
 5. The bot replies with matched places — name, type, distance, and a KakaoMap link.
 
+If Kakao or Gemini is temporarily unavailable, the bot falls back where it can. If
+restaurant search itself is unavailable, it returns a temporary error instead of
+claiming that nothing was found nearby.
+
 ## Setup
 
 ### 1. Telegram bot
@@ -60,3 +64,5 @@ python -m pytest -v
 | `SESSION_TIMEOUT_MIN` | Collection window | 20 |
 | `LLM_MODEL` | Gemini model id | gemini-2.5-flash |
 | `TRIGGER_PHRASES` | Comma-separated override | built-in list |
+| `MAX_SESSION_MESSAGES` | Max collected messages per session | 50 |
+| `MAX_SESSION_CHARS` | Max collected text characters per session | 4000 |

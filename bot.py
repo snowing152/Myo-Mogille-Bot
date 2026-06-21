@@ -20,12 +20,32 @@ from foodbot.places import KakaoClient
 from foodbot.session import SessionStore
 
 
+async def close_resources(bot_data: dict) -> None:
+    kakao = bot_data.get("kakao")
+    close = getattr(kakao, "aclose", None)
+    if close is not None:
+        await close()
+
+
+async def on_shutdown(app: Application) -> None:
+    await close_resources(app.bot_data)
+
+
 def build_application() -> Application:
     config = load_config()
-    app = Application.builder().token(config.telegram_bot_token).build()
+    app = (
+        Application.builder()
+        .token(config.telegram_bot_token)
+        .post_shutdown(on_shutdown)
+        .build()
+    )
 
     app.bot_data["config"] = config
-    app.bot_data["sessions"] = SessionStore(timeout_min=config.session_timeout_min)
+    app.bot_data["sessions"] = SessionStore(
+        timeout_min=config.session_timeout_min,
+        max_messages=config.max_session_messages,
+        max_chars=config.max_session_chars,
+    )
     app.bot_data["kakao"] = KakaoClient(config.kakao_rest_api_key)
     app.bot_data["llm"] = GeminiLLM(api_key=config.gemini_api_key, model=config.llm_model)
     app.bot_data["default_point"] = GeoPoint(

@@ -55,23 +55,48 @@ def _strip_json(text: str) -> str:
     return text
 
 
+def _string_list(data: dict[str, Any], key: str) -> list[str]:
+    value = data.get(key, [])
+    if not isinstance(value, list):
+        raise ValueError(f"{key} must be a list")
+    return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+
 def parse_extract(raw: str) -> CravingResult:
     data = json.loads(_strip_json(raw))
+    if not isinstance(data, dict):
+        raise ValueError("extract response must be an object")
+    area = data.get("area")
+    if isinstance(area, str):
+        area = area.strip() or None
+    else:
+        area = None
+    no_preference = data.get("no_preference", False)
+    if not isinstance(no_preference, bool):
+        no_preference = False
     return CravingResult(
-        cravings=list(data.get("cravings", [])),
-        search_queries=list(data.get("search_queries", [])),
-        area=data.get("area") or None,
-        no_preference=bool(data.get("no_preference", False)),
+        cravings=_string_list(data, "cravings"),
+        search_queries=_string_list(data, "search_queries"),
+        area=area,
+        no_preference=no_preference,
     )
 
 
-def parse_ranking(raw: str, max_index: int) -> list[Pick]:
+def parse_ranking(raw: str, max_index: int, limit: int | None = None) -> list[Pick]:
     data = json.loads(_strip_json(raw))
+    if not isinstance(data, dict):
+        raise ValueError("ranking response must be an object")
     picks: list[Pick] = []
+    seen: set[int] = set()
     for item in data.get("picks", []):
+        if not isinstance(item, dict):
+            continue
         idx = item.get("index")
-        if isinstance(idx, int) and 0 <= idx <= max_index:
+        if isinstance(idx, int) and 0 <= idx <= max_index and idx not in seen:
+            seen.add(idx)
             picks.append(Pick(index=idx, reason_ru=str(item.get("reason_ru", "")).strip()))
+            if limit is not None and len(picks) >= limit:
+                break
     return picks
 
 
@@ -116,4 +141,4 @@ class GeminiLLM:
             "Места:\n" + "\n".join(lines)
         )
         raw = await asyncio.to_thread(self._generate, RANK_SYSTEM, user)
-        return parse_ranking(raw, max_index=len(places) - 1)
+        return parse_ranking(raw, max_index=len(places) - 1, limit=count)

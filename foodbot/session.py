@@ -27,19 +27,35 @@ class Session:
     messages: list[str] = field(default_factory=list)
     started_at: float = 0.0
     prompt_message_id: int | None = None
+    max_messages: int = 50
+    max_chars: int = 4000
 
-    def add_message(self, text: str) -> None:
+    def add_message(self, text: str) -> bool:
         cleaned = text.strip()
-        if cleaned:
-            self.messages.append(cleaned)
+        if not cleaned:
+            return False
+        if len(self.messages) >= self.max_messages:
+            return False
+        if sum(len(message) for message in self.messages) + len(cleaned) > self.max_chars:
+            return False
+        self.messages.append(cleaned)
+        return True
 
 
 class SessionStore:
     """In-memory per-chat sessions with lazy expiry."""
 
-    def __init__(self, timeout_min: int, now: Callable[[], float] = time.monotonic) -> None:
+    def __init__(
+        self,
+        timeout_min: int,
+        now: Callable[[], float] = time.monotonic,
+        max_messages: int = 50,
+        max_chars: int = 4000,
+    ) -> None:
         self._timeout_s = timeout_min * 60
         self._now = now
+        self._max_messages = max_messages
+        self._max_chars = max_chars
         self._sessions: dict[int, Session] = {}
 
     def start(self, chat_id: int) -> Session:
@@ -47,6 +63,8 @@ class SessionStore:
             chat_id=chat_id,
             state=SessionState.COLLECTING,
             started_at=self._now(),
+            max_messages=self._max_messages,
+            max_chars=self._max_chars,
         )
         self._sessions[chat_id] = session
         return session
