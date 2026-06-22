@@ -1,96 +1,63 @@
 # AGENTS.md
 
-## Project Overview
+Instructions for coding agents working in this repository.
 
-Myo Mogille Bot is a Python Telegram group-chat bot that helps Russian-speaking
-friends in Korea decide where to eat. A user starts a collection session with
-`/eat` or a configured trigger phrase, group members send cravings, and a user
-finishes with `/go` or the inline find button. The bot extracts food preferences,
-searches Kakao Places near the configured area, ranks results, and replies with
-Telegram HTML containing KakaoMap links.
+## Project State
 
-The bot is intentionally small and runs by long polling from `bot.py`. Sessions are
-in memory, so active sessions are lost when the process restarts.
+Myo Mogille Bot is a compact Python Telegram group-chat bot for helping
+Russian-speaking groups in Korea decide where to eat. The bot runs locally with
+Telegram long polling from `bot.py`; it is online only while that process is
+running.
 
-There is no `CLAUDE.md` file in the current repository state.
+The runtime flow is:
 
-## Tech Stack
+1. A user starts a collection session with `/eat` or a configured trigger phrase.
+2. Group members send food or drink cravings.
+3. A user finishes with `/go` or the inline find button.
+4. The bot extracts food intent, expands Korean search terms, searches Kakao
+   Places near the configured area, optionally checks Naver Blog Search snippets,
+   ranks candidates, and returns Telegram HTML with KakaoMap links.
 
-- Language: Python 3
-- Telegram framework: `python-telegram-bot`
-- LLM provider: Gemini via `google-genai`
-- Places provider: Kakao Local keyword search via `httpx`
-- Configuration: environment variables loaded with `python-dotenv`
-- Tests: `pytest` and `pytest-asyncio`
-- Packaging/build system: unknown
-- Linting/formatting tool: unknown
-- Runtime deployment target: local long-polling process; no web server is present.
+Sessions are in memory only. Restarting the process loses active sessions.
 
-## Folder Structure
+## Project Stack
 
-- `bot.py`: application entrypoint. Builds the Telegram app, wires dependencies into
-  `application.bot_data`, registers handlers, starts polling, and closes resources
-  on shutdown.
-- `foodbot/config.py`: environment parsing and validation.
-- `foodbot/handlers.py`: Telegram text, command, and callback handlers.
-- `foodbot/session.py`: bounded in-memory per-chat sessions with lazy expiry.
-- `foodbot/pipeline.py`: orchestration for LLM extraction, area resolution, Kakao
-  search, ranking fallback, and formatting.
-- `foodbot/llm.py`: Gemini wrapper and strict JSON parsing for craving extraction
-  and place ranking.
+- Language: Python 3.
+- Telegram framework: `python-telegram-bot`.
+- LLM provider: Gemini via `google-genai`.
+- Places provider: Kakao Local keyword search via `httpx`.
+- Optional evidence provider: Naver Search API via `httpx`.
+- Configuration: `.env` and process environment through `python-dotenv`.
+- Tests: `pytest` and `pytest-asyncio`.
+- Build system: none currently.
+- Lint and format tooling: none currently.
+- Package manager scripts: none. There is no `package.json`.
+
+## Repository Layout
+
+- `bot.py`: application entrypoint, dependency wiring, handler registration, long
+  polling startup, and async resource shutdown.
+- `foodbot/config.py`: environment parsing, validation, defaults, and `Config`.
+- `foodbot/handlers.py`: Telegram command, text, and callback handlers.
+- `foodbot/session.py`: bounded in-memory per-chat sessions with timeout expiry.
+- `foodbot/pipeline.py`: extraction, area resolution, search, evidence, ranking,
+  and formatting orchestration.
+- `foodbot/llm.py`: Gemini wrapper and strict JSON parsing.
 - `foodbot/places.py`: Kakao client, `Place` model, response parsing, and merge
   logic.
+- `foodbot/naver.py`: Naver Search API client and response parsing.
+- `foodbot/evidence.py`: blog snippet evidence extraction.
+- `foodbot/search_queries.py`: Korean query expansion rules.
 - `foodbot/geo.py`: named-area resolution through Kakao.
-- `foodbot/dictionary.py`: degraded Russian-to-Korean craving fallback.
+- `foodbot/dictionary.py`: fallback Russian-to-Korean craving dictionary.
 - `foodbot/formatting.py`: Telegram HTML response formatting and escaping.
-- `tests/`: async and unit tests for config, sessions, handlers, pipeline, LLM,
-  Kakao parsing, formatting, and app cleanup.
-- `.env.example`: documented environment template.
+- `tests/`: unit and async tests for config, handlers, sessions, providers,
+  pipeline behavior, fallbacks, and formatting.
 - `README.md`: user setup and command reference.
-- `PROJECT_OVERVIEW.md`: architectural overview.
-- `FIX_PLAN.md`: historical fix plan from hardening work.
-- `AGENTS.md`: instructions for future coding agents working in this repository.
+- `PROJECT_OVERVIEW.md`: architecture and behavior notes.
+- `.env.example`: local configuration template.
 
-## Development Rules
-
-- Do not read or print `.env`; it may contain real Telegram, Gemini, and Kakao keys.
-- Do not run the real bot unless explicitly requested; it uses real Telegram,
-  Gemini, and Kakao credentials from the environment.
-- Keep provider calls behind `GeminiLLM` and `KakaoClient` so tests can use fakes.
-- Keep Telegram handlers thin. Handler code should collect/validate Telegram state
-  and delegate business behavior to `pipeline.run` or small helpers.
-- Preserve graceful degradation:
-  - LLM extraction failure should fall back to `dictionary.translate_cravings`.
-  - LLM ranking failure should fall back to nearest places.
-  - Kakao search failures with no usable results should return the temporary search
-    error, not a false "nothing found" message.
-- Preserve stale-button protection in `handlers.on_go`; callback message ids must
-  match the active session prompt when available.
-- Preserve session bounds (`MAX_SESSION_MESSAGES`, `MAX_SESSION_CHARS`) and the
-  one-time group notice when new messages are ignored because the limit was reached.
-- Always escape dynamic text sent with Telegram `ParseMode.HTML`.
-- Close async provider resources through the app shutdown path.
-- Do not introduce persistent storage unless explicitly requested.
-- When adding configuration, update `Config`, `.env.example`, README configuration
-  docs, and tests together.
-- When changing pipeline behavior, add tests for LLM failure, Kakao failure, and
-  no-result cases as applicable.
-
-## Coding Style Rules
-
-- Follow the existing compact module style: small dataclasses, direct functions,
-  and explicit dependency objects.
-- Use type hints for public helpers and dataclasses.
-- Prefer explicit validation over permissive parsing for external data.
-- Keep tests close to behavior and use fake clients instead of real network calls.
-- Keep user-facing bot messages in Russian unless changing product language is part
-  of the task.
-- Use `from __future__ import annotations` in Python modules, matching the current
-  codebase.
-- Add comments only when they explain non-obvious behavior or fallback decisions.
-- Avoid broad refactors when a small targeted change solves the issue.
-
-## Commands
+## Key Commands
 
 Create and activate a virtual environment on Windows PowerShell:
 
@@ -105,8 +72,7 @@ Install runtime dependencies:
 pip install -r requirements.txt
 ```
 
-Install development/test dependencies. This also installs runtime dependencies
-because `requirements-dev.txt` includes `-r requirements.txt`:
+Install development and test dependencies:
 
 ```powershell
 pip install -r requirements-dev.txt
@@ -118,7 +84,7 @@ Create local configuration:
 copy .env.example .env
 ```
 
-Then fill in the required keys in `.env`. Do not commit `.env`.
+Fill in real secrets in `.env`. Never commit `.env`.
 
 Run the bot locally:
 
@@ -126,38 +92,20 @@ Run the bot locally:
 python bot.py
 ```
 
-This requires valid Telegram, Gemini, Kakao, and default-location environment
-configuration.
-
-Run tests:
+Run the full test suite:
 
 ```powershell
 python -m pytest -v
 ```
 
-Build command:
+Run tests with the checked-in virtual environment if it exists:
 
-```text
-unknown
+```powershell
+.\.venv\Scripts\python.exe -m pytest -v
 ```
 
-Dev server command:
-
-```text
-unknown
-```
-
-Lint command:
-
-```text
-unknown
-```
-
-Format command:
-
-```text
-unknown
-```
+There is no build command, dev server command, lint command, or format command in
+the current project state.
 
 ## Configuration
 
@@ -179,69 +127,84 @@ Optional environment variables:
 - `TRIGGER_PHRASES`, comma-separated trigger override
 - `MAX_SESSION_MESSAGES`, default `50`
 - `MAX_SESSION_CHARS`, default `4000`
+- `NAVER_CLIENT_ID`, optional
+- `NAVER_CLIENT_SECRET`, optional
+- `NAVER_BLOG_EVIDENCE_ENABLED`, default `false`
+- `NAVER_BLOG_EVIDENCE_LIMIT`, default `3`
 
-Use `.env.example` as the template. Do not commit real `.env` files.
+Use `.env.example` as the source of truth for local setup. Do not print or read
+real `.env` contents unless the user explicitly asks and understands the secret
+risk.
 
-## Testing And Checking Instructions
+## Code Rules
 
-- Run the full test suite after code changes:
+- Keep changes small and aligned with the existing module boundaries.
+- Preserve `from __future__ import annotations` in Python modules.
+- Use type hints for public helpers, dataclasses, and provider-facing models.
+- Keep Telegram handlers thin. Handler code should validate Telegram state and
+  delegate business logic to `pipeline.run` or small helpers.
+- Keep external services behind dependency objects (`GeminiLLM`, `KakaoClient`,
+  `NaverClient`) so tests can use fakes.
+- Do not add live network calls to tests. Use fake clients, simple stubs, or
+  `httpx.MockTransport`.
+- Always escape dynamic text sent with Telegram `ParseMode.HTML`.
+- Keep user-facing bot messages in Russian unless the task explicitly changes the
+  product language.
+- Preserve graceful degradation:
+  - Gemini extraction failure falls back to `dictionary.translate_cravings`.
+  - Gemini ranking failure falls back to deterministic scored order.
+  - Kakao provider failures produce a temporary search error instead of a false
+    no-results message.
+  - Optional Naver evidence must not be required for normal recommendations.
+- Preserve stale inline-button protection in `handlers.on_go`.
+- Preserve session bounds and the one-time group notice when input limits are
+  reached.
+- Close async provider resources through the application shutdown path.
+- Do not introduce persistent storage, deployment tooling, or new provider
+  abstractions unless the task requires it.
+- When adding or changing configuration, update `Config`, `.env.example`, README
+  configuration docs, project overview docs, and tests together.
 
-```powershell
-python -m pytest -v
-```
+## Testing Guidance
 
-- On this repository, using the existing virtual environment is usually:
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest -v
-```
-
-- Expected current coverage areas:
-  - config parsing and validation;
-  - session lifecycle, expiry, and bounds;
-  - Telegram handler session flow and callback safety;
-  - LLM JSON parsing and ranking filters;
-  - Kakao parsing and place merging;
-  - pipeline fallbacks and provider failure handling;
-  - Telegram HTML formatting and escaping;
-  - app resource cleanup.
-- Do not add tests that require live Telegram, Gemini, or Kakao credentials. Use fake
-  clients or `httpx.MockTransport`.
-- Prefer `load_config(dict(...))` in config-dependent tests instead of mutating real
-  environment variables.
-- If pytest warns that it cannot write `.pytest_cache`, treat it as a cache
-  permission issue unless tests fail.
-
-## Safe Workflow For Future Changes
-
-1. Check status first:
-
-```powershell
-git status --short --branch
-```
-
-2. Read the relevant module and matching tests before editing.
-3. Add or update tests for behavior changes, especially around provider failures,
-   callback handling, session limits, and HTML output.
-4. Make the smallest scoped code change that satisfies the tests.
-5. Run targeted tests first when useful, then the full suite:
+Run targeted tests first when changing a narrow behavior, then run the full suite:
 
 ```powershell
 python -m pytest -v
 ```
 
-6. Review the diff before committing:
+Important coverage areas in this repo:
 
-```powershell
-git diff --stat
-git diff
-```
+- Config defaults, overrides, validation errors, and optional Naver settings.
+- Session lifecycle, expiry, bounds, and trigger matching.
+- Telegram handler flow for `/eat`, `/go`, collection messages, callback cleanup,
+  stale buttons, and HTML parse mode.
+- LLM JSON parsing and fallback behavior.
+- Kakao response parsing, provider errors, place merging, and no-result handling.
+- Naver response parsing and blog evidence extraction.
+- Pipeline happy path, no-preference nudges, no-result responses, dictionary
+  fallback, blog-evidence fallback, and ranking fallback.
+- Telegram HTML escaping and output formatting.
+- Application resource cleanup.
 
-7. Keep secrets out of logs, commits, and test fixtures.
-8. Do not rewrite Git history or force-push unless explicitly requested.
-9. Do not change user-facing Russian messages casually; update tests and docs when
-   message behavior changes.
-10. Update `README.md`, `.env.example`, and `PROJECT_OVERVIEW.md` when configuration,
-    setup steps, or architecture change.
-11. Keep commits scoped. If a change touches Telegram handlers, pipeline behavior,
-    and docs, make sure each part is covered by tests or a clear manual check.
+## ExecPlans
+
+When writing complex features or significant refactors, use an ExecPlan as
+described in `.agent/PLANS.md` from design through implementation.
+
+## Self-Review Checklist
+
+Before finishing a change:
+
+1. Check the working tree with `git status --short`.
+2. Review the diff with `git diff --stat` and `git diff`.
+3. Confirm no secrets from `.env` or API responses were added to code, docs, test
+   fixtures, or logs.
+4. Confirm changed behavior has tests, especially around provider failures,
+   callback handling, session limits, config validation, and HTML output.
+5. Confirm all affected docs are updated when commands, setup, config, or
+   architecture changed.
+6. Run `python -m pytest -v` when dependencies are installed.
+7. If tests cannot be run, state exactly why and note the residual risk.
+
+Keep commits scoped and avoid unrelated refactors.
