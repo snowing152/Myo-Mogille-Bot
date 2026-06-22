@@ -114,3 +114,4 @@ async def test_pipeline_rank_failure_uses_nearest():
     kakao = FakeKakao({"소주": [P1]})
     msg = await pipeline.run(["соджу"], _deps(llm, kakao))
     assert "이자카야" in msg
+    assert "술집" not in msg

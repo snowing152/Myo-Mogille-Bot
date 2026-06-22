@@ -13,6 +13,8 @@ def test_build_message_lists_picks():
     assert "홍대" in msg
     assert "이자카야 하나" in msg
     assert "삼겹살집" in msg
+    assert "술집" not in msg
+    assert "고기" not in msg
     assert "соджу + закуски" in msg
     assert msg.count("🟡 Kakao:") == 2
     assert msg.count("тык сюда") == 2
@@ -24,6 +26,7 @@ def test_build_message_omits_kakao_line_when_url_empty():
     place_no_url = Place("3", "노 링크집", "식당", "주소", 37.5, 127.0, 100, "")
     msg = build_message("홍대", [place_no_url], [Pick(0, "что-то")])
     assert "🟡 Kakao:" not in msg
+    assert "식당" not in msg
 
 
 def test_build_message_escapes_html_special_characters():

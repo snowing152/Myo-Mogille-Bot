@@ -98,7 +98,7 @@ async def run(messages: list[str], deps: PipelineDeps) -> str:
         picks = []
     if not picks:
         picks = [
-            Pick(index=i, reason_ru=results[i].category)
+            Pick(index=i, reason_ru="")
             for i in range(min(deps.results_count, len(results)))
         ]
 

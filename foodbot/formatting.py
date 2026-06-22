@@ -9,7 +9,7 @@ from foodbot.llm import Pick
 def build_message(area_label: str, places: list[Place], picks: list[Pick]) -> str:
     """Telegram HTML-formatted Russian message.
 
-    Dynamic text (place name/category/reason/area) is html-escaped since it
+    Dynamic text (place name/reason/area) is html-escaped since it
     originates from Kakao/LLM output we don't control. Must be sent with
     parse_mode="HTML" (see foodbot/handlers.py).
     """
@@ -20,10 +20,8 @@ def build_message(area_label: str, places: list[Place], picks: list[Pick]) -> st
     blocks: list[str] = []
     for number, pick in enumerate(picks, start=1):
         place = places[pick.index]
-        reason = pick.reason_ru or place.category
+        reason = pick.reason_ru
         head = f"{number}. {html.escape(place.name)}"
-        if place.category:
-            head += f" ({html.escape(place.category)})"
         block = head
         if reason:
             block += f"\n{html.escape(reason)}"
