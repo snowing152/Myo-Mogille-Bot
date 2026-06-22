@@ -6,8 +6,9 @@
 
 Myo Mogille Bot helps a Telegram group answer the practical question: **"куда
 пойдём кушать?"** It collects everyone’s cravings, translates food intent into
-Korean search terms, searches nearby restaurants through Kakao Places, and replies
-with a short list of recommendations and KakaoMap links.
+Korean search terms, searches nearby restaurants through Kakao Places, optionally
+checks Naver Blog snippets for supporting evidence, and replies with a short list
+of recommendations and KakaoMap links.
 
 The bot runs locally with Telegram long polling. It is online only while
 `python bot.py` is running.
@@ -36,7 +37,8 @@ Typical flow:
 3. Group members type cravings such as `соджу`, `кимчи`, `мясо`, or mention a
    district such as `в Хондэ`.
 4. Anyone taps the button or sends `/go`.
-5. The bot replies with matched places, short reasons, and KakaoMap links.
+5. The bot replies with matched places, short reasons, optional blog-evidence
+   notes, and KakaoMap links.
 
 If Gemini is unavailable, the bot falls back to a small Russian-to-Korean craving
 dictionary. If Kakao search itself is unavailable, the bot returns a temporary
@@ -48,9 +50,11 @@ error instead of incorrectly saying that nothing was found.
   find button.
 - In-memory per-chat collection sessions with timeout and input limits.
 - Russian-language craving extraction with Gemini.
-- Korean search query generation for Kakao Places.
+- Korean search query generation and place-intent expansion for Kakao Places.
 - Optional area detection and geocoding through Kakao keyword search.
-- Restaurant deduplication, distance sorting, and LLM-assisted ranking.
+- Restaurant deduplication, evidence scoring, and LLM-assisted ranking.
+- Optional Naver Blog Search evidence for mentioned foods, possible prices, and
+  atmosphere/use-case hints.
 - Fallback behavior for LLM extraction/ranking failures.
 - Temporary provider-error handling for failed Kakao searches.
 - Telegram HTML output with escaped dynamic text.
@@ -66,6 +70,7 @@ error instead of incorrectly saying that nothing was found.
 | Telegram bot framework | `python-telegram-bot` |
 | LLM provider | Gemini via `google-genai` |
 | Places provider | Kakao Local API via `httpx` |
+| Evidence provider | Optional Naver Search API via `httpx` |
 | Environment loading | `python-dotenv` |
 | Testing | `pytest`, `pytest-asyncio` |
 | Build system | TODO |
@@ -81,12 +86,15 @@ There is no `package.json` in this repository.
 ├── foodbot/
 │   ├── config.py           # Environment parsing and validation
 │   ├── dictionary.py       # Russian-to-Korean fallback craving dictionary
+│   ├── evidence.py         # Naver blog evidence extraction and collection
 │   ├── formatting.py       # Telegram HTML response formatting
 │   ├── geo.py              # Area geocoding helper
 │   ├── handlers.py         # Telegram command, text, and callback handlers
 │   ├── llm.py              # Gemini wrapper and JSON parsers
+│   ├── naver.py            # Naver Search API client and parsers
 │   ├── pipeline.py         # Craving extraction, search, ranking, formatting flow
 │   ├── places.py           # Kakao client and Place model
+│   ├── search_queries.py   # Korean query expansion rules
 │   └── session.py          # In-memory session store
 ├── tests/                  # Pytest test suite
 ├── assets/                 # Project image assets
@@ -114,6 +122,9 @@ messages, so it cannot collect cravings.
 
 - **Kakao REST API key:** create an app at <https://developers.kakao.com>.
 - **Gemini API key:** create a key at <https://aistudio.google.com/apikey>.
+- **Optional Naver Search API keys:** create an app at
+  <https://developers.naver.com>, enable the Search API (`검색`), and use the
+  app's Client ID / Client Secret for blog evidence.
 
 ### 3. Create a virtual environment
 
@@ -163,6 +174,10 @@ Fill in the required values:
 | `TRIGGER_PHRASES` | No | built-in list | Comma-separated trigger override. |
 | `MAX_SESSION_MESSAGES` | No | `50` | Max collected messages per session. |
 | `MAX_SESSION_CHARS` | No | `4000` | Max collected text characters per session. |
+| `NAVER_CLIENT_ID` | No | empty | Naver Developers Client ID for optional Search API evidence. |
+| `NAVER_CLIENT_SECRET` | No | empty | Naver Developers Client Secret for optional Search API evidence. |
+| `NAVER_BLOG_EVIDENCE_ENABLED` | No | `false` | Enables Naver Blog Search snippets for ranking/output when credentials are present. |
+| `NAVER_BLOG_EVIDENCE_LIMIT` | No | `3` | Blog snippets to inspect per candidate/query. |
 
 The example default coordinates point at Hongdae, Seoul.
 

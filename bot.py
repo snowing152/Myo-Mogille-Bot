@@ -16,15 +16,24 @@ from foodbot import handlers
 from foodbot.config import load_config
 from foodbot.geo import GeoPoint
 from foodbot.llm import GeminiLLM
+from foodbot.naver import NaverClient
 from foodbot.places import KakaoClient
 from foodbot.session import SessionStore
 
 
+def configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+
+
 async def close_resources(bot_data: dict) -> None:
-    kakao = bot_data.get("kakao")
-    close = getattr(kakao, "aclose", None)
-    if close is not None:
-        await close()
+    for key in ("kakao", "naver"):
+        resource = bot_data.get(key)
+        close = getattr(resource, "aclose", None)
+        if close is not None:
+            await close()
 
 
 async def on_shutdown(app: Application) -> None:
@@ -48,6 +57,15 @@ def build_application() -> Application:
     )
     app.bot_data["kakao"] = KakaoClient(config.kakao_rest_api_key)
     app.bot_data["llm"] = GeminiLLM(api_key=config.gemini_api_key, model=config.llm_model)
+    if (
+        config.naver_blog_evidence_enabled
+        and config.naver_client_id
+        and config.naver_client_secret
+    ):
+        app.bot_data["naver"] = NaverClient(
+            config.naver_client_id,
+            config.naver_client_secret,
+        )
     app.bot_data["default_point"] = GeoPoint(
         config.default_lat, config.default_lng, config.default_area_name
     )
@@ -60,10 +78,7 @@ def build_application() -> Application:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    configure_logging()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     app = build_application()

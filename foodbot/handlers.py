@@ -39,6 +39,11 @@ def _build_deps(context: ContextTypes.DEFAULT_TYPE) -> pipeline.PipelineDeps:
         default_point=bot_data["default_point"],
         radius_m=config.search_radius_m,
         results_count=config.results_count,
+        naver=bot_data.get("naver"),
+        naver_blog_evidence_enabled=bool(
+            bot_data.get("naver") and config.naver_blog_evidence_enabled
+        ),
+        naver_blog_evidence_limit=config.naver_blog_evidence_limit,
     )
 
 

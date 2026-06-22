@@ -115,6 +115,27 @@ async def test_on_go_runs_pipeline(monkeypatch):
     assert any("РЕЗУЛЬТАТ" in (t or "") for t in _sent_texts(ctx))
 
 
+def test_build_deps_passes_naver_when_configured():
+    ctx = _context()
+    naver = object()
+    ctx.application.bot_data["naver"] = naver
+    ctx.application.bot_data["config"] = load_config(
+        dict(
+            BASE_ENV,
+            NAVER_CLIENT_ID="id",
+            NAVER_CLIENT_SECRET="secret",
+            NAVER_BLOG_EVIDENCE_ENABLED="true",
+            NAVER_BLOG_EVIDENCE_LIMIT="4",
+        )
+    )
+
+    deps = handlers._build_deps(ctx)
+
+    assert deps.naver is naver
+    assert deps.naver_blog_evidence_enabled is True
+    assert deps.naver_blog_evidence_limit == 4
+
+
 async def test_on_go_clears_stale_prompt_keyboard(monkeypatch):
     ctx = _context()
     ctx.bot.edit_message_reply_markup = AsyncMock()

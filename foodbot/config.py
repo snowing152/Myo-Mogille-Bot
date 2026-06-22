@@ -34,6 +34,10 @@ class Config:
     trigger_phrases: tuple[str, ...] = DEFAULT_TRIGGERS
     max_session_messages: int = 50
     max_session_chars: int = 4000
+    naver_client_id: str = ""
+    naver_client_secret: str = ""
+    naver_blog_evidence_enabled: bool = False
+    naver_blog_evidence_limit: int = 3
 
 
 def _require(env: dict[str, str], key: str) -> str:
@@ -73,6 +77,17 @@ def _positive_int_env(
     return value
 
 
+def _bool_env(env: dict[str, str], key: str, default: bool) -> bool:
+    raw = env.get(key, "").strip().lower()
+    if not raw:
+        return default
+    if raw in {"1", "true", "yes", "y", "on"}:
+        return True
+    if raw in {"0", "false", "no", "n", "off"}:
+        return False
+    raise ConfigError(f"{key} must be a boolean")
+
+
 def load_config(env: dict[str, str] | None = None) -> Config:
     """Build a Config. Pass an explicit env dict in tests; otherwise read .env + os.environ."""
     if env is None:
@@ -99,4 +114,10 @@ def load_config(env: dict[str, str] | None = None) -> Config:
         trigger_phrases=triggers,
         max_session_messages=_positive_int_env(env, "MAX_SESSION_MESSAGES", 50, max_value=500),
         max_session_chars=_positive_int_env(env, "MAX_SESSION_CHARS", 4000, max_value=50000),
+        naver_client_id=env.get("NAVER_CLIENT_ID", "").strip(),
+        naver_client_secret=env.get("NAVER_CLIENT_SECRET", "").strip(),
+        naver_blog_evidence_enabled=_bool_env(env, "NAVER_BLOG_EVIDENCE_ENABLED", False),
+        naver_blog_evidence_limit=_positive_int_env(
+            env, "NAVER_BLOG_EVIDENCE_LIMIT", 3, max_value=10
+        ),
     )

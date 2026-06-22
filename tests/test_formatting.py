@@ -1,5 +1,6 @@
 from foodbot.places import Place
 from foodbot.llm import Pick
+from foodbot.evidence import BlogEvidence, BlogEvidencePost
 from foodbot.formatting import build_message
 
 PLACES = [
@@ -35,6 +36,30 @@ def test_build_message_escapes_html_special_characters():
     assert "Bar &amp; Grill &lt;Best&gt;" in msg
     assert "острое &amp; вкусное" in msg
     assert "Bar & Grill <Best>" not in msg  # raw, unescaped text must not appear
+
+
+def test_build_message_adds_escaped_blog_evidence_summary():
+    evidence = BlogEvidence(
+        posts=[
+            BlogEvidencePost(
+                title="blog",
+                description="desc",
+                link="https://blog.example",
+                postdate="20260620",
+                matched_terms=[],
+                prices=[],
+                hints=[],
+            )
+        ],
+        matched_terms=["막걸리", "김치전"],
+        prices=["12,000원"],
+        hints=["2차", "분위기 & 맛집"],
+    )
+    msg = build_message("홍대", PLACES, [Pick(0, "")], blog_evidence={"1": evidence})
+    assert "По блогам (1)" in msg
+    assert "еда: 막걸리, 김치전" in msg
+    assert "цены: 12,000원" in msg
+    assert "분위기 &amp; 맛집" in msg
 
 
 def test_build_message_empty():

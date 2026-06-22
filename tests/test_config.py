@@ -23,6 +23,10 @@ def test_load_config_defaults():
     assert cfg.session_timeout_min == 20
     assert cfg.llm_model == "gemini-2.5-flash"
     assert cfg.trigger_phrases == DEFAULT_TRIGGERS
+    assert cfg.naver_client_id == ""
+    assert cfg.naver_client_secret == ""
+    assert cfg.naver_blog_evidence_enabled is False
+    assert cfg.naver_blog_evidence_limit == 3
 
 
 def test_load_config_overrides():
@@ -34,6 +38,10 @@ def test_load_config_overrides():
         MAX_SESSION_MESSAGES="25",
         MAX_SESSION_CHARS="2000",
         TRIGGER_PHRASES="есть хочу, перекусим",
+        NAVER_CLIENT_ID="naver-id",
+        NAVER_CLIENT_SECRET="naver-secret",
+        NAVER_BLOG_EVIDENCE_ENABLED="true",
+        NAVER_BLOG_EVIDENCE_LIMIT="5",
     )
     cfg = load_config(env)
     assert cfg.search_radius_m == 800
@@ -42,6 +50,10 @@ def test_load_config_overrides():
     assert cfg.max_session_messages == 25
     assert cfg.max_session_chars == 2000
     assert cfg.trigger_phrases == ("есть хочу", "перекусим")
+    assert cfg.naver_client_id == "naver-id"
+    assert cfg.naver_client_secret == "naver-secret"
+    assert cfg.naver_blog_evidence_enabled is True
+    assert cfg.naver_blog_evidence_limit == 5
 
 
 def test_load_config_missing_required():
@@ -70,4 +82,10 @@ def test_load_config_rejects_out_of_range_values():
 
     env = dict(BASE_ENV, DEFAULT_LNG="181")
     with pytest.raises(ConfigError, match="DEFAULT_LNG"):
+        load_config(env)
+
+
+def test_load_config_rejects_bad_bool():
+    env = dict(BASE_ENV, NAVER_BLOG_EVIDENCE_ENABLED="maybe")
+    with pytest.raises(ConfigError, match="NAVER_BLOG_EVIDENCE_ENABLED"):
         load_config(env)

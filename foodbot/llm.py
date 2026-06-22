@@ -38,10 +38,12 @@ EXTRACT_SYSTEM = (
 RANK_SYSTEM = (
     "Ты выбираешь из списка заведений лучшие, которые покрывают пожелания группы.\n"
     "Тебе дают cravings (что хотят) и пронумерованный список мест "
-    "(index, name, category, distance).\n"
+    "(index, name, category, distance, evidence).\n"
     'Верни СТРОГО JSON: {"picks": [{"index": число, "reason_ru": "короткое объяснение по-русски"}]}\n'
     "- Выбери до N лучших мест, по возможности покрывая разные пожелания.\n"
     "- reason_ru — одна короткая фраза, почему место подходит (можно с эмодзи).\n"
+    "- Не утверждай, что блюдо или цена точно есть, если evidence этого не подтверждает.\n"
+    "- Если evidence слабый, формулируй осторожно: «похоже», «в блогах встречается».\n"
     "- Используй только индексы из данного списка. Ответь только JSON."
 )
 
@@ -130,9 +132,16 @@ class GeminiLLM:
         raw = await asyncio.to_thread(self._generate, EXTRACT_SYSTEM, user)
         return parse_extract(raw)
 
-    async def rank_places(self, cravings: list[str], places: list[Place], count: int) -> list[Pick]:
+    async def rank_places(
+        self,
+        cravings: list[str],
+        places: list[Place],
+        count: int,
+        evidence_lines: list[str] | None = None,
+    ) -> list[Pick]:
         lines = [
-            f"{i}. {p.name} | {p.category} | {p.distance_m}м"
+            f"{i}. {p.name} | {p.category} | {p.distance_m}м | "
+            f"evidence: {(evidence_lines or [''] * len(places))[i] or 'нет'}"
             for i, p in enumerate(places)
         ]
         user = (

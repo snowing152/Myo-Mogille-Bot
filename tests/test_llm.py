@@ -76,9 +76,11 @@ class StubLLM(GeminiLLM):
     def __init__(self, canned: str):
         self._canned = canned
         self._model = "stub"
+        self.last_system = None
         self.last_user = None
 
     def _generate(self, system: str, user: str) -> str:
+        self.last_system = system
         self.last_user = user
         return self._canned
 
@@ -94,6 +96,8 @@ async def test_extract_cravings_calls_generate():
 async def test_rank_places_calls_generate():
     stub = StubLLM('{"picks":[{"index":0,"reason_ru":"соджу"}]}')
     places = [Place("1", "A", "술집", "addr", 37.5, 127.0, 100, "u")]
-    picks = await stub.rank_places(["소주"], places, 3)
+    picks = await stub.rank_places(["소주"], places, 3, evidence_lines=["blog_prices=12,000원"])
     assert picks == [Pick(0, "соджу")]
     assert "A" in stub.last_user
+    assert "blog_prices=12,000원" in stub.last_user
+    assert "цена" in stub.last_system
